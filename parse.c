@@ -1,5 +1,17 @@
 #include "9cc.h"
 
+LVar *locals;
+
+LVar *find_lvar(Token *tok) {
+    for (LVar *var = locals; var; var = var->next) {
+        if (strlen(var->name) == tok->len &&
+            !memcmp(tok->str, var->name, tok->len)) {
+            return var;
+        }
+    }
+    return NULL;
+}
+
 Node *new_node(NodeKind kind) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = kind;
@@ -26,10 +38,18 @@ Node *new_num(int val) {
     return node;
 }
 
-Node *new_lvar(char name) {
+Node *new_lvar(LVar *lvar) {
     Node *node = new_node(ND_LVAR);
-    node->name = name;
+    node->lvar = lvar;
     return node;
+}
+
+LVar *push_var(char *name) {
+    LVar *lvar = calloc(1, sizeof(LVar));
+    lvar->next = locals;
+    lvar->name = name;
+    locals = lvar;
+    return lvar;
 }
 
 Node *stmt();
@@ -42,7 +62,8 @@ Node *mul();
 Node *unary();
 Node *primary();
 
-Node *program() {
+Program *program() {
+    locals = NULL;
     Node head;
     head.next = NULL;
     Node *cur = &head;
@@ -51,7 +72,11 @@ Node *program() {
         cur->next = stmt();
         cur = cur->next;
     }
-    return head.next;
+
+    Program *prog = calloc(1, sizeof(Program));
+    prog->node = head.next;
+    prog->locals = locals;
+    return prog;
 }
 
 Node *stmt() {
@@ -151,7 +176,11 @@ Node *primary() {
 
     Token *tok = consume_ident();
     if (tok) {
-        return new_lvar(*tok->str);
+        LVar *lvar = find_lvar(tok);
+        if (!lvar) {
+            lvar = push_var(strndup(tok->str, tok->len));
+        }
+        return new_lvar(lvar);
     }
 
     // そうでなければ数値のはず

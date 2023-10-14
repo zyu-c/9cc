@@ -2,8 +2,7 @@
 
 void gen_addr(Node *node) {
     if (node->kind = ND_LVAR) {
-        int offset = (node->name - 'a' + 1) * 8;
-        printf("  lea rax, [rbp-%d]\n", offset);
+        printf("  lea rax, [rbp-%d]\n", node->lvar->offset);
         printf("  push rax\n");
         return;
     }
@@ -89,7 +88,7 @@ void gen(Node *node) {
     printf("  push rax\n");
 }
 
-void codegen(Node *node) {
+void codegen(Program *prog) {
     // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
     printf(".globl main\n");
@@ -98,11 +97,11 @@ void codegen(Node *node) {
     // プロローグ
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n");
-    printf("  sub rsp, 208\n");
+    printf("  sub rsp, %d\n", prog->stack_size);
 
-    for (Node *n = node; n; n = n->next) {
+    for (Node *node = prog->node; node; node = node->next) {
         // 抽象構文木を下りながらコード生成
-        gen(n);
+        gen(node);
     }
 
     // エピローグ
